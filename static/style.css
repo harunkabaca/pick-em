@@ -1,0 +1,116 @@
+/* Genel Sayfa Stili */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #1e1e2e;
+    color: #fff;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+
+/* Başlık */
+h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+/* Tahmin Konteyneri */
+#predictions-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Tahmin Kartı */
+.prediction {
+    background: #2a2a3a;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease-in-out;
+}
+
+.prediction:hover {
+    transform: scale(1.02);
+}
+
+/* Başlık */
+.prediction h2 {
+    font-size: 1.4rem;
+    margin-bottom: 10px;
+}
+
+/* Seçenekler */
+.options {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+/* Seçenek Butonları */
+.option {
+    background: #3b3b5b;
+    padding: 10px;
+    border-radius: 8px;
+    margin: 5px 0;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.option:hover {
+    background: #57577a;
+}
+
+/* Seçili seçenek vurgulama */
+.option input {
+    display: none;
+}
+
+.option label {
+    cursor: pointer;
+    font-size: 1rem;
+    display: block;
+    padding: 10px;
+    text-align: center;
+    border-radius: 8px;
+    transition: background 0.3s ease-in-out;
+}
+
+/* Seçilen seçenek */
+.option input:checked + label {
+    background-color: #ff4d4d;
+    color: white;
+    font-weight: bold;
+    transform: scale(1.05);
+}
+
+/* Oy Sayıları */
+.vote-count {
+    font-size: 0.9rem;
+    color: #ccc;
+    margin-left: 10px;
+}
+
+/* Buton Stili */
+.submit-prediction {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.3s, transform 0.2s;
+}
+
+.submit-prediction:hover {
+    background: #ff3333;
+    transform: scale(1.05);
+}
