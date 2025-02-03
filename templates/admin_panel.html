@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Pick-em Yönetimi</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Panel - Pick-em Yönetimi</h1>
+
+        <!-- Pick-em Soru Ekleme Formu -->
+        <div class="form-section">
+            <h2>Yeni Soru Ekle</h2>
+            <form id="add-question-form">
+                <label for="event_name">Soru Başlığı:</label>
+                <input type="text" id="event_name" name="event_name" required>
+
+                <label for="option_1">Şık 1:</label>
+                <input type="text" id="option_1" name="option_1" required>
+
+                <label for="option_2">Şık 2:</label>
+                <input type="text" id="option_2" name="option_2" required>
+
+                <label for="option_3">Şık 3 (Opsiyonel):</label>
+                <input type="text" id="option_3" name="option_3">
+
+                <button type="submit">Soru Ekle</button>
+            </form>
+        </div>
+
+        <!-- Var Olan Sorular Listesi -->
+        <div class="list-section">
+            <h2>Mevcut Sorular</h2>
+            <div id="questions-list">
+                <!-- Sorular buraya yüklenecek -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    $(document).ready(function() {
+        // Soru ekleme
+        $('#add-question-form').submit(function(event) {
+            event.preventDefault();
+            const eventName = $('#event_name').val();
+            const options = {
+                option_1: $('#option_1').val(),
+                option_2: $('#option_2').val(),
+                option_3: $('#option_3').val()
+            };
+
+            $.ajax({
+                url: '/api/admin/questions',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ event_name: eventName, options: options }),
+                success: function(response) {
+                    alert('Soru eklendi!');
+                    loadQuestions();
+                    $('#add-question-form')[0].reset();
+                },
+                error: function(error) {
+                    alert('Hata: ' + error.responseJSON.message);
+                }
+            });
+        });
+
+        // Soruları yükleme
+        function loadQuestions() {
+            $.ajax({
+                url: '/api/admin/questions',
+                type: 'GET',
+                success: function(data) {
+                    $('#questions-list').empty();
+                    data.forEach(function(question) {
+                        $('#questions-list').append(`
+                            <div class="question-item">
+                                <h3>${question.event_name}</h3>
+                                <ul>
+                                    ${Object.values(question.options).map(option => option ? `<li>${option}</li>` : '').join('')}
+                                </ul>
+                            </div>
+                        `);
+                    });
+                },
+                error: function(error) {
+                    $('#questions-list').html('<p>Hata oluştu.</p>');
+                }
+            });
+        }
+
+        loadQuestions();
+    });
+    </script>
+</body>
+</html>
