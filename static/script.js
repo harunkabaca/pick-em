@@ -4,20 +4,36 @@ $(document).ready(() => {
     checkSession();
     loadPredictions();
     loadStoreItems(1); // Load store for kick.com/naru (streamer_id=1)
-    
+
     socket.on('connect', () => {
         console.log('Socket bağlantısı kuruldu.');
     });
 
     socket.on('vote_update', (data) => updateVotes(data));
+
+    // Listen for pickem result update
+    socket.on('result_update', (data) => {
+        alert(`Pickem ${data.prediction_id} sonuçlandı!`);
+        loadPredictions();  // Reload predictions to show updated results
+    });
 });
 
 // Authentication check
 function checkSession() {
     fetch('/api/check_session')
         .then(r => r.json())
-        .then(data => currentUser = data)
+        .then(data => {
+            currentUser = data;
+            if (currentUser.is_admin) {
+                showAdminButtons();
+            }
+        })
         .catch(() => window.location = '/login');
+}
+
+// Show admin buttons (for prediction close)
+function showAdminButtons() {
+    $('.admin-button').show(); // Show buttons with class .admin-button (like "Sonuçlandır")
 }
 
 // Load Predictions
@@ -41,6 +57,9 @@ function loadPredictions() {
                             `).join('')}
                         </div>
                         <button onclick="submitPrediction(${pred.id})" class="submit-prediction">Submit</button>
+                        ${pred.status === 'aktif' && currentUser.is_admin ? `
+                            <button onclick="closePrediction(${pred.id})" class="admin-button close-prediction">Sonuçlandır</button>
+                        ` : ''}
                     </div>
                 `).join('')
             );
@@ -135,3 +154,51 @@ function showToast(message) {
 function updatePointsDisplay() {
     $('#points-display').text(`Points: ${currentUser.points}`);
 }
+
+// Close Prediction (Admin Only)
+function closePrediction(predictionId) {
+    // Get available options for this prediction
+    fetch(`/api/predictions/${predictionId}/options`)
+        .then(r => r.json())
+        .then(options => {
+            const optionsHtml = options.map(option => `
+                <input type="radio" name="result-${predictionId}" value="${option}">
+                <label>${option}</label><br>
+            `).join('');
+            
+            // Show modal with options
+            $('#result-modal-body').html(optionsHtml);
+            $('#result-modal').modal('show');
+        });
+}
+
+// Submit the result for the prediction
+function submitPredictionResult(predictionId) {
+    const selectedOption = $(`input[name="result-${predictionId}"]:checked`).val();
+    
+    if (!selectedOption) {
+        alert('Please select an option!');
+        return;
+    }
+
+    fetch(`/admin/predictions/${predictionId}/result`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ correct_option: selectedOption })
+    })
+    .then(response => response.json())
+    .then(data => {
+        showToast(data.message);
+        loadPredictions();  // Reload predictions after closing
+        $('#result-modal').modal('hide');
+    })
+    .catch(error => {
+        console.error('Error submitting result:', error);
+    });
+}
+
+// Modal close result button
+$('#submit-result-btn').on('click', function() {
+    const predictionId = $(this).data('prediction-id');
+    submitPredictionResult(predictionId);
+});

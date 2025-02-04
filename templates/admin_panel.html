@@ -1,99 +1,225 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Pick-em Yönetimi</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+     
+    <title>Admin Paneli</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Admin Panel - Pick-em Yönetimi</h1>
-
-        <!-- Pick-em Soru Ekleme Formu -->
-        <div class="form-section">
-            <h2>Yeni Soru Ekle</h2>
-            <form id="add-question-form">
-                <label for="event_name">Soru Başlığı:</label>
-                <input type="text" id="event_name" name="event_name" required>
-
-                <label for="option_1">Şık 1:</label>
-                <input type="text" id="option_1" name="option_1" required>
-
-                <label for="option_2">Şık 2:</label>
-                <input type="text" id="option_2" name="option_2" required>
-
-                <label for="option_3">Şık 3 (Opsiyonel):</label>
-                <input type="text" id="option_3" name="option_3">
-
-                <button type="submit">Soru Ekle</button>
-            </form>
+    <link rel="stylesheet" href="/static/style.css">
+    <div class="container mt-4">
+        <h1>Admin Paneli</h1>
+        <div id="user-info" class="d-flex align-items-center">
+            <!-- current_user kontrolü ekle -->
+            {% if current_user %}
+                <span id="username">{{ current_user.username }}</span>
+            {% else %}
+                <span id="username">Kullanıcı bulunamadı</span>
+            {% endif %}
+            <button id="logout-btn" class="btn btn-danger btn-sm ml-3">Çıkış Yap</button>
         </div>
 
-        <!-- Var Olan Sorular Listesi -->
-        <div class="list-section">
-            <h2>Mevcut Sorular</h2>
-            <div id="questions-list">
-                <!-- Sorular buraya yüklenecek -->
+        <!-- Yeni Pickem Ekleme Formu -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4>Yeni Pickem Oluştur</h4>
+            </div>
+            <div class="card-body">
+                <form id="createPredictionForm">
+                    <div class="mb-3">
+                        <label for="eventName" class="form-label">Pickem İçeriği</label>
+                        <input type="text" class="form-control" id="eventName" placeholder="Pickem içeriğini yazın" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="options" class="form-label">Seçenekler (2-6 seçenek)</label>
+                        <input type="text" class="form-control" id="options" placeholder="Seçenekleri virgülle ayırarak yazın" required>
+                        <small class="form-text text-muted">Örneğin: Seçenek 1, Seçenek 2, Seçenek 3</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Pickemi Oluştur</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Pickem Listesi -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4>Aktif Pickemler</h4>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Pickem İçeriği</th>
+                            <th>Seçenekler</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="predictionsTableBody">
+                        <!-- Pickemler buraya yüklenecek -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Kullanıcı Rol Güncelleme -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4>Kullanıcı Rolü Güncelle</h4>
+            </div>
+            <div class="card-body">
+                <form id="updateUserRoleForm">
+                    <div class="mb-3">
+                        <label for="userId" class="form-label">Kullanıcı ID</label>
+                        <input type="number" class="form-control" id="userId" placeholder="Kullanıcı ID'sini girin" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="isBroadcaster" class="form-label">Yayında mı?</label>
+                        <select class="form-control" id="isBroadcaster" required>
+                            <option value="true">Evet</option>
+                            <option value="false">Hayır</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-warning">Kullanıcı Rolünü Güncelle</button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Result Modal (Sonuçlandırma Modalı) -->
+    <div class="modal" id="result-modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sonuçlandır</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="result-modal-body">
+                    <!-- Options will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="submit-result-btn">Sonuçlandır</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+
     <script>
-    $(document).ready(function() {
-        // Soru ekleme
-        $('#add-question-form').submit(function(event) {
-            event.preventDefault();
-            const eventName = $('#event_name').val();
-            const options = {
-                option_1: $('#option_1').val(),
-                option_2: $('#option_2').val(),
-                option_3: $('#option_3').val()
+        $(document).ready(function() {
+            const socket = io.connect('http://localhost:5000');
+
+            // Yeni Pickem oluşturma
+            $('#createPredictionForm').on('submit', function(e) {
+                e.preventDefault();
+                const eventName = $('#eventName').val();
+                const options = $('#options').val().split(',').map(option => option.trim());
+
+                if (options.length < 2 || options.length > 6) {
+                    alert('Seçenek sayısı 2 ile 6 arasında olmalıdır!');
+                    return;
+                }
+
+                $.ajax({
+                    url: '/admin/predictions',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ event_name: eventName, options: options }),
+                    success: function(response) {
+                        alert('Pickem başarıyla oluşturuldu!');
+                        loadPredictions();
+                    },
+                    error: function(error) {
+                        const errorMessage = error.responseJSON ? error.responseJSON.error : 'Bilinmeyen bir hata oluştu';
+                        alert('Hata: ' + errorMessage);
+                    }
+                });
+            });
+
+            // Pickemleri yükleme
+            function loadPredictions() {
+                $.get('/admin/predictions', function(predictions) {
+                    $('#predictionsTableBody').empty();
+                    predictions.forEach(prediction => {
+                        const row = `
+                            <tr>
+                                <td>${prediction.id}</td>
+                                <td>${prediction.event_name}</td>
+                                <td>${prediction.options.join(', ')}</td>
+                                <td>${prediction.status}</td>
+                                <td>
+                                    ${prediction.status === 'aktif' ? 
+                                    `<button class="btn btn-danger" onclick="closePrediction(${prediction.id})">Sonuçlandır</button>` : ''}
+                                </td>
+                            </tr>
+                        `;
+                        $('#predictionsTableBody').append(row);
+                    });
+                });
+            }
+
+            // Pickemi sonuçlandırma
+            window.closePrediction = function(predictionId) {
+                $.ajax({
+                    url: `/admin/predictions/${predictionId}/options`,
+                    method: 'GET',
+                    success: function(options) {
+                        const optionsHtml = options.map(option => `
+                            <input type="radio" name="result-${predictionId}" value="${option}">
+                            <label>${option}</label><br>
+                        `).join('');
+                        
+                        // Show modal with options
+                        $('#result-modal-body').html(optionsHtml);
+                        $('#result-modal').modal('show');
+                        
+                        $('#submit-result-btn').data('prediction-id', predictionId);
+                    },
+                    error: function(error) {
+                        alert('Hata: ' + error.responseJSON.error);
+                    }
+                });
             };
 
-            $.ajax({
-                url: '/api/admin/questions',
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ event_name: eventName, options: options }),
-                success: function(response) {
-                    alert('Soru eklendi!');
-                    loadQuestions();
-                    $('#add-question-form')[0].reset();
-                },
-                error: function(error) {
-                    alert('Hata: ' + error.responseJSON.message);
+            // Submit the result for the prediction
+            $('#submit-result-btn').on('click', function() {
+                const predictionId = $(this).data('prediction-id');
+                const selectedOption = $(`input[name="result-${predictionId}"]:checked`).val();
+                
+                if (!selectedOption) {
+                    alert('Lütfen bir seçenek seçin!');
+                    return;
                 }
+            
+                $.ajax({
+                    url: `/admin/predictions/${predictionId}/answer`,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ correct_option: selectedOption }),
+                    success: function(response) {
+                        alert('Pickem sonuçlandırıldı!');
+                        loadPredictions();
+                        $('#result-modal').modal('hide');
+                    },
+                    error: function(error) {
+                        alert('Hata: ' + error.responseJSON.error);
+                    }
+                });
             });
+            
+            // Sayfa yüklendiğinde pickemleri yükle
+            loadPredictions();
         });
-
-        // Soruları yükleme
-        function loadQuestions() {
-            $.ajax({
-                url: '/api/admin/questions',
-                type: 'GET',
-                success: function(data) {
-                    $('#questions-list').empty();
-                    data.forEach(function(question) {
-                        $('#questions-list').append(`
-                            <div class="question-item">
-                                <h3>${question.event_name}</h3>
-                                <ul>
-                                    ${Object.values(question.options).map(option => option ? `<li>${option}</li>` : '').join('')}
-                                </ul>
-                            </div>
-                        `);
-                    });
-                },
-                error: function(error) {
-                    $('#questions-list').html('<p>Hata oluştu.</p>');
-                }
-            });
-        }
-
-        loadQuestions();
-    });
     </script>
 </body>
 </html>

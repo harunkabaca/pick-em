@@ -11,14 +11,15 @@
 <body>
     <header>
         <div id="user-panel">
-            {% if 'user_id' in session %}
-                <div class="user-info">
-                    <span id="points-display">Points: {{ session.get('points', 0) }}</span>
-                </div>
-            {% else %}
-                <a href="{{ url_for('register') }}">Register</a> |
-                <a href="{{ url_for('login') }}">Login</a>
-            {% endif %}
+            <div id="user-info" class="d-flex align-items-center">
+                <!-- current_user kontrolü ekle -->
+                {% if current_user %}
+                    <span id="username">{{ current_user.username }}</span>
+                {% else %}
+                    <span id="username">Kullanıcı bulunamadı</span>
+                {% endif %}
+                <button id="logout-btn" class="btn btn-danger btn-sm ml-3">Çıkış Yap</button>
+            </div>
         </div>
     </header>
 
