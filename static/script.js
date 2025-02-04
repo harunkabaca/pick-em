@@ -1,4 +1,5 @@
-const socket = io('http://127.0.0.1:5000/');
+const socket = io('http://127.0.0.1:5000/'); 
+
 let currentUser = null;
 
 // Initialize App
@@ -8,7 +9,7 @@ $(document).ready(() => {
     loadStoreItems(1); // Load store for kick.com/naru (streamer_id=1)
 });
 
-// Authentication
+// Authentication check
 function checkSession() {
     fetch('/api/check_session')
         .then(r => r.json())
@@ -16,23 +17,20 @@ function checkSession() {
         .catch(() => window.location = '/login');
 }
 
-// Prediction System
+// Load Predictions
 function loadPredictions() {
     fetch('/api/predictions')
         .then(r => r.json())
         .then(predictions => {
             $('#predictions-container').html(
                 predictions.map(pred => `
-                    <div class="prediction" data-id="${pred.id}">
+                    <div class="prediction-card" data-id="${pred.id}">
                         <h3>${pred.event}</h3>
                         <div class="options">
                             ${Object.entries(pred.options).map(([opt, val]) => `
                                 <div class="option">
-                                    <input type="radio" name="pred-${pred.id}" 
-                                           id="opt-${pred.id}-${opt}" value="${opt}">
-                                    <label for="opt-${pred.id}-${opt}">
-                                        ${opt}: ${val}%
-                                    </label>
+                                    <input type="radio" name="pred-${pred.id}" id="opt-${pred.id}-${opt}" value="${opt}">
+                                    <label for="opt-${pred.id}-${opt}">${opt}: ${val}%</label>
                                 </div>
                             `).join('')}
                         </div>
@@ -43,8 +41,14 @@ function loadPredictions() {
         });
 }
 
+// Submit Prediction
 function submitPrediction(predId) {
     const selected = $(`input[name="pred-${predId}"]:checked`).val();
+    if (!selected) {
+        alert('Please select an option!');
+        return;
+    }
+
     fetch('/api/predictions', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -52,7 +56,10 @@ function submitPrediction(predId) {
             prediction_id: predId,
             selected_option: selected
         })
-    }).then(loadPredictions);
+    }).then(() => {
+        loadPredictions();  // Reload predictions
+        showToast("Prediction submitted successfully!");
+    }).catch(err => console.error('Error submitting prediction:', err));
 }
 
 // Store System
@@ -73,34 +80,48 @@ function loadStoreItems(streamerId) {
         });
 }
 
+// Purchase Item
 function purchaseItem(itemId) {
     fetch('/api/store/purchase', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ item_id: itemId })
     }).then(r => r.json())
-      .then(data => {
-          currentUser.points = data.new_balance;
-          updatePointsDisplay();
-      });
+        .then(data => {
+            currentUser.points = data.new_balance;
+            updatePointsDisplay();
+        });
 }
 
-// Real-Time Updates
+// Show Toast (notification)
+function showToast(message) {
+    const toast = $('#toast');
+    const toastMessage = $('#toast-message');
+    toastMessage.text(message);
+    toast.addClass('show');
+    setTimeout(() => toast.removeClass('show'), 3000); // Hide toast after 3 seconds
+}
+
+// Real-Time Updates (via WebSocket)
 socket.on('vote_update', data => {
-    const pred = $(`.prediction[data-id="${data.prediction_id}"]`);
+    console.log('Vote update received:', data);
+
+    const pred = $(`.prediction-card[data-id="${data.prediction_id}"]`); // Find the correct prediction card
+
+    const totalVotes = Object.values(data.votes).reduce((acc, val) => acc + val, 0);
+
     Object.entries(data.votes).forEach(([opt, votes]) => {
+        const percentage = (votes / totalVotes * 100).toFixed(1); // Calculate percentage of votes
+
         pred.find(`#opt-${data.prediction_id}-${opt} + label`)
-            .text(`${opt}: ${((votes/total)*100).toFixed(1)}%`);
+            .text(`${opt}: ${votes} votes (${percentage}%)`);
+
+        pred.find(`#opt-${data.prediction_id}-${opt} + .vote-count`)
+            .text(`Votes: ${votes}`);
     });
 });
 
-socket.on('points_update', data => {
-    if(data.user_id === currentUser.id) {
-        currentUser.points = data.new_balance;
-        updatePointsDisplay();
-    }
-});
-
+// Update Points Display
 function updatePointsDisplay() {
     $('#points-display').text(`Points: ${currentUser.points}`);
 }

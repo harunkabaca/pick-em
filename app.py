@@ -23,15 +23,26 @@ def get_db_connection():
     except Exception as e:
         print(f"Database connection error: {e}")
         return None
+def get_user_from_db(user_id):
+    # Fetch user data from the database based on user_id
+    # ... (Database query logic goes here) ...
+    user_data = {
+        'username': 'JohnDoe', 
+        'profile_picture': '/static/default_profile.jpg' 
+    }  # Replace with actual data from the database
+    return user_data
+
 
 # Routes
-
 @app.route('/')
 def index():
     if 'user_id' in session:
-        return render_template('index.html')
+        user_id = session['user_id']
+        current_user = get_user_from_db(user_id) 
+        return render_template('index.html', current_user=current_user)
     else:
         return redirect(url_for('login'))
+
     
 @app.route('/register')
 def register_page():
@@ -42,7 +53,7 @@ def login():
     error = None
     if request.method == 'POST':
         username = request.form['username']
-        password = request.form['password'].encode('utf-8')  # Encode password before hashing
+        password = request.form['password'].encode('utf-8')
 
         with get_db_connection() as conn:
             with conn.cursor() as cur:
@@ -52,7 +63,7 @@ def login():
                 """, (username,))
                 user = cur.fetchone()
 
-                if user and bcrypt.checkpw(password, user[1].encode('utf-8')):  # Ensure user[1] is in bytes
+                if user and bcrypt.checkpw(password, user[1].strip().encode('utf-8')):
                     session['user_id'] = user[0]
                     session['points'] = user[2]
                     session['is_streamer'] = user[3]
@@ -68,18 +79,18 @@ def register():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             try:
-                # Hash the password correctly using bcrypt
                 hashed_password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
                 
                 cur.execute("""
                     INSERT INTO users (username, password)
                     VALUES (%s, %s) RETURNING id
-                """, (data['username'], hashed_password))
+                """, (data['username'], hashed_password.decode('utf-8')))
                 user_id = cur.fetchone()[0]
                 conn.commit()
                 session['user_id'] = user_id
                 return jsonify({"message": "Registration successful"})
             except psycopg2.IntegrityError:
+                conn.rollback()
                 return jsonify({"error": "Username already exists"}), 400
   
 @app.route('/api/check_session')
@@ -99,7 +110,7 @@ def predictions():
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT id, event_name, options, created_at, status 
-                    FROM predictions WHERE status = 'active'
+                    FROM predictions WHERE status = 'aktif'
                 """)
                 return jsonify([
                     dict(zip(['id', 'event', 'options', 'created', 'status'], row))
@@ -119,7 +130,6 @@ def predictions():
             """, (session['user_id'], data['prediction_id'], data['selected_option']))
             conn.commit()
 
-            # Broadcast updated votes
             cur.execute("""
                 SELECT selected_option, COUNT(*) 
                 FROM user_predictions 
@@ -154,12 +164,14 @@ def purchase():
     data = request.get_json()
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # Verify item and get price
             cur.execute("""
                 SELECT price, streamer_id 
                 FROM store_items WHERE id = %s
             """, (data['item_id'],))
             item = cur.fetchone()
+
+            if not item or session['points'] < item[0]:
+                item = cur.fetchone()
 
             if not item or session['points'] < item[0]:
                 return jsonify({"error": "Invalid purchase"}), 400

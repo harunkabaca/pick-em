@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="stylesheet" href="/static/style.css"> 
     <title>Registration</title>
     <style>
         /* Basic styling for the form */
@@ -44,7 +45,7 @@
         <button type="submit">Register</button>
     </form>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
         $(document).ready(function() {
             $('#register-form').submit(function(event) {
@@ -55,15 +56,14 @@
 
                 $.ajax({
                     type: 'POST',
-                    url: '/api/register', 
+                    url: '/api/register',  // Düzeltilmiş URL
                     contentType: 'application/json',
                     data: JSON.stringify({
                         username: username,
                         password: password
                     }),
                     success: function(response) {
-                        alert(response.message);
-                        // Redirect to login page or other success page
+                        alert(response.message); 
                         window.location.href = '/login'; 
                     },
                     error: function(error) {
