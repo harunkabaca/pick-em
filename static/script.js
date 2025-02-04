@@ -1,12 +1,15 @@
-const socket = io('http://127.0.0.1:5000/'); 
+const socket = io('http://localhost:5000', { transports: ['websocket'] });
 
-let currentUser = null;
-
-// Initialize App
 $(document).ready(() => {
     checkSession();
     loadPredictions();
     loadStoreItems(1); // Load store for kick.com/naru (streamer_id=1)
+    
+    socket.on('connect', () => {
+        console.log('Socket bağlantısı kuruldu.');
+    });
+
+    socket.on('vote_update', (data) => updateVotes(data));
 });
 
 // Authentication check
@@ -28,13 +31,16 @@ function loadPredictions() {
                         <h3>${pred.event}</h3>
                         <div class="options">
                             ${Object.entries(pred.options).map(([opt, val]) => `
-                                <div class="option">
+                                <div class="option" data-prediction-id="${pred.id}" data-option="${opt}">
                                     <input type="radio" name="pred-${pred.id}" id="opt-${pred.id}-${opt}" value="${opt}">
-                                    <label for="opt-${pred.id}-${opt}">${opt}: ${val}%</label>
+                                    <label for="opt-${pred.id}-${opt}">${opt}: <span class="vote-count">${val}</span></label>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar" id="progress-${pred.id}-${opt}" style="width: ${val}%"></div>
+                                    </div>
                                 </div>
                             `).join('')}
                         </div>
-                        <button onclick="submitPrediction(${pred.id})">Submit</button>
+                        <button onclick="submitPrediction(${pred.id})" class="submit-prediction">Submit</button>
                     </div>
                 `).join('')
             );
@@ -56,10 +62,34 @@ function submitPrediction(predId) {
             prediction_id: predId,
             selected_option: selected
         })
-    }).then(() => {
-        loadPredictions();  // Reload predictions
-        showToast("Prediction submitted successfully!");
-    }).catch(err => console.error('Error submitting prediction:', err));
+    }).then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showToast(data.error);  // Zaten oy verildiyse hata mesajını göster
+        } else {
+            showToast("Prediction submitted successfully!");
+        }
+    })
+    .catch(err => console.error('Error submitting prediction:', err));
+}
+
+// Update Votes (Socket)
+function updateVotes(data) {
+    const predictionId = data.prediction_id;
+    const votes = data.votes;
+
+    console.log('Gelen oy verileri:', votes);  // Debug için verileri konsola yazdır
+
+    let totalVotes = Object.values(votes).reduce((acc, val) => acc + val, 0);
+
+    for (const [option, count] of Object.entries(votes)) {
+        const optionElement = $(`.option[data-prediction-id="${predictionId}"][data-option="${option}"]`);
+        if (optionElement.length) {
+            const percentage = totalVotes > 0 ? ((count / totalVotes) * 100).toFixed(1) : 0;
+            optionElement.find('.vote-count').text(`${count} votes (${percentage}%)`);
+            optionElement.find('.progress-bar').css('width', `${percentage}%`);
+        }
+    }
 }
 
 // Store System
@@ -96,30 +126,10 @@ function purchaseItem(itemId) {
 // Show Toast (notification)
 function showToast(message) {
     const toast = $('#toast');
-    const toastMessage = $('#toast-message');
-    toastMessage.text(message);
+    $('#toast-message').text(message);
     toast.addClass('show');
-    setTimeout(() => toast.removeClass('show'), 3000); // Hide toast after 3 seconds
+    setTimeout(() => toast.removeClass('show'), 3000); 
 }
-
-// Real-Time Updates (via WebSocket)
-socket.on('vote_update', data => {
-    console.log('Vote update received:', data);
-
-    const pred = $(`.prediction-card[data-id="${data.prediction_id}"]`); // Find the correct prediction card
-
-    const totalVotes = Object.values(data.votes).reduce((acc, val) => acc + val, 0);
-
-    Object.entries(data.votes).forEach(([opt, votes]) => {
-        const percentage = (votes / totalVotes * 100).toFixed(1); // Calculate percentage of votes
-
-        pred.find(`#opt-${data.prediction_id}-${opt} + label`)
-            .text(`${opt}: ${votes} votes (${percentage}%)`);
-
-        pred.find(`#opt-${data.prediction_id}-${opt} + .vote-count`)
-            .text(`Votes: ${votes}`);
-    });
-});
 
 // Update Points Display
 function updatePointsDisplay() {

@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify, redirect, url_for, render_template, session, send_from_directory
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
-import psycopg2
-import bcrypt
+import psycopg2, bcrypt, json
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = 'your_strong_secret_key'
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
+
 
 # Database Configuration
 DB_CONFIG = {
@@ -109,8 +109,19 @@ def predictions():
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT id, event_name, options, created_at, status 
-                    FROM predictions WHERE status = 'aktif'
+                    SELECT p.id, p.event_name, p.options, p.created_at, p.status,
+                           COALESCE(v.votes, '{}'::json) as votes
+                    FROM predictions p
+                    LEFT JOIN (
+                        SELECT prediction_id, json_object_agg(selected_option, cnt) as votes
+                        FROM (
+                            SELECT prediction_id, selected_option, COUNT(*) as cnt
+                            FROM user_predictions
+                            GROUP BY prediction_id, selected_option
+                        ) sub
+                        GROUP BY prediction_id
+                    ) v ON p.id = v.prediction_id
+                    WHERE p.status = 'aktif'
                 """)
                 return jsonify([
                     dict(zip(['id', 'event', 'options', 'created', 'status'], row))
@@ -123,6 +134,16 @@ def predictions():
     data = request.get_json()
     with get_db_connection() as conn:
         with conn.cursor() as cur:
+            # Check for duplicate vote
+            cur.execute("""
+                SELECT 1 FROM user_predictions 
+                WHERE user_id = %s AND prediction_id = %s
+            """, (session['user_id'], data['prediction_id']))
+            
+            if cur.fetchone():
+                return jsonify({"error": "You have already voted for this prediction."}), 400
+
+            # Insert new vote
             cur.execute("""
                 INSERT INTO user_predictions 
                 (user_id, prediction_id, selected_option)
@@ -130,6 +151,7 @@ def predictions():
             """, (session['user_id'], data['prediction_id'], data['selected_option']))
             conn.commit()
 
+            # Fetch updated votes
             cur.execute("""
                 SELECT selected_option, COUNT(*) 
                 FROM user_predictions 
