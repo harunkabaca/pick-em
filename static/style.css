@@ -166,3 +166,13 @@ h1 {
     font-size: 0.9em;
     color: #666;
 }
+#optionInputs {
+    margin-top: 10px;
+}
+
+#addOptionBtn {
+    margin-top: 10px;
+}
+.admin-button {
+    margin-left: 10px; 
+}

@@ -42,29 +42,42 @@ function loadPredictions() {
         .then(r => r.json())
         .then(predictions => {
             $('#predictions-container').html(
-                predictions.map(pred => `
-                    <div class="prediction-card" data-id="${pred.id}">
-                        <h3>${pred.event}</h3>
-                        <div class="options">
-                            ${Object.entries(pred.options).map(([opt, val]) => `
-                                <div class="option" data-prediction-id="${pred.id}" data-option="${opt}">
-                                    <input type="radio" name="pred-${pred.id}" id="opt-${pred.id}-${opt}" value="${opt}">
-                                    <label for="opt-${pred.id}-${opt}">${opt}: <span class="vote-count">${val}</span></label>
-                                    <div class="progress-bar-container">
-                                        <div class="progress-bar" id="progress-${pred.id}-${opt}" style="width: ${val}%"></div>
-                                    </div>
-                                </div>
-                            `).join('')}
+                predictions.map(pred => {
+                    // options'ın doğru bir JSON objesi olup olmadığını kontrol et
+                    const options = pred.options && typeof pred.options === 'object' ? pred.options : {};
+                    
+                    return `
+                        <div class="prediction-card" data-id="${pred.id}">
+                            <h3>${pred.event}</h3>
+                            <div class="options">
+                                ${Object.entries(options).map(([opt, val]) => {
+                                    // val'ın sayısal bir değer olup olmadığını kontrol et
+                                    const progressValue = typeof val === 'number' && !isNaN(val) ? val : 0;
+
+                                    return `
+                                        <div class="option" data-prediction-id="${pred.id}" data-option="${opt}">
+                                            <input type="radio" name="pred-${pred.id}" id="opt-${pred.id}-${opt}" value="${opt}">
+                                            <label for="opt-${pred.id}-${opt}">${opt}: <span class="vote-count">${progressValue}</span></label>
+                                            <div class="progress-bar-container">
+                                                <div class="progress-bar" id="progress-${pred.id}-${opt}" style="width: ${progressValue}%"></div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                            <button onclick="submitPrediction(${pred.id})" class="submit-prediction">Submit</button>
+                            ${pred.status === 'aktif' && currentUser.is_admin ? `
+                                <button onclick="closePrediction(${pred.id})" class="admin-button close-prediction">Sonuçlandır</button>
+                            ` : ''}
                         </div>
-                        <button onclick="submitPrediction(${pred.id})" class="submit-prediction">Submit</button>
-                        ${pred.status === 'aktif' && currentUser.is_admin ? `
-                            <button onclick="closePrediction(${pred.id})" class="admin-button close-prediction">Sonuçlandır</button>
-                        ` : ''}
-                    </div>
-                `).join('')
+                    `;
+                }).join('')
             );
-        });
+        })
+        .catch(error => console.error('Veri alınırken hata oluştu:', error));
 }
+
+
 
 // Submit Prediction
 function submitPrediction(predId) {

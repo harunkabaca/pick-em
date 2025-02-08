@@ -153,7 +153,8 @@ def admin_login():
 @admin_required
 def admin_panel():
     if 'is_admin' in session and session['is_admin']:
-        return render_template('admin_panel.html') 
+        current_user = get_user_from_db(session['user_id'])
+        return render_template('admin_panel.html', current_user = current_user) 
     else:
         return jsonify({"error": "Admin authentication required"}), 403 
 
@@ -181,6 +182,7 @@ def add_prediction():
     data = request.get_json()
     event_name = data['event_name']
     options = data['options']
+    options_json = json.dumps(options)
 
     if len(options) < 2 or len(options) > 6:
         return jsonify({"error": "Options must be between 2 and 6."}), 400
@@ -190,7 +192,8 @@ def add_prediction():
             cur.execute("""
                 INSERT INTO predictions (event_name, options, status)
                 VALUES (%s, %s, 'aktif')
-            """, (event_name, options))
+            """, (event_name, options_json))
+            
             conn.commit()
             
             # Notify users about the new prediction
@@ -383,29 +386,6 @@ def purchase():
                 'new_balance': session['points']
             })
             return jsonify({"new_balance": session['points']})
-
-@app.route('/api/admin/questions', methods=['POST'])
-def add_question():
-    if not session.get('is_streamer'):
-        return jsonify({"error": "Streamer access required"}), 403
-
-    data = request.get_json()
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO questions 
-                (question_text, option_a, option_b, option_c, option_d)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (
-                data['text'],
-                data['options']['A'],
-                data['options']['B'],
-                data['options'].get('C'),
-                data['options'].get('D')
-            ))
-            conn.commit()
-            socketio.emit('new_question', broadcast=True)
-            return jsonify({"message": "Question added"})
 
 @app.route('/static/<path:filename>')
 def static_files(filename):
